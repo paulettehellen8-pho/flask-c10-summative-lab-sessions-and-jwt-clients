@@ -1,206 +1,153 @@
-# Productivity API (Flask + JWT)
+# Productivity Tool API — Flask + JWT
 
-A REST API where users sign up, log in and manage their own private notes.
+A Flask REST API for a personal productivity tool. Users can create accounts, log in, check their identity with a JWT, and manage their own private notes. The backend uses SQLAlchemy, Flask-Migrate, Flask-Bcrypt, Flask-JWT-Extended, and a React client.
 
-- Authentication uses **JWT** (Flask-JWT-Extended)
-- Passwords are hashed with **bcrypt** (Flask-Bcrypt), never stored as plain text
-- Data is stored in **SQLite** using SQLAlchemy, with **Flask-Migrate** for migrations
-- Users can only see, edit and delete **their own** notes
-- The notes list is **paginated**
-- Built to work with the `client-with-jwt` React app in this repo
+## Features
 
-## Requirements
-
-- Python 3.12
-- [Pipenv](https://pipenv.pypa.io/) (`pip install pipenv`)
-
-## Installation
-
-All commands are run from the `server/` folder.
-
-```bash
-cd server
-pipenv install
-pipenv shell
-```
-
-Create your `.env` file. It holds the secret key used to sign tokens and is
-not committed to git.
-
-```bash
-cp .env.example .env
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-
-Open `.env` and paste the generated value after `JWT_SECRET_KEY=`.
-
-Create the database tables and add the sample data:
-
-```bash
-flask db upgrade
-python seed.py
-```
-
-The seed script creates two users, `alice` (12 notes) and `bob` (3 notes).
-Both have the password `Password123!`. It is safe to run more than once.
-
-## Running the app
-
-```bash
-python app.py
-```
-
-The API runs at http://localhost:5555.
-
-To use it with the React client:
-
-```bash
-cd ../client-with-jwt
-npm install
-npm start          # opens http://localhost:4000
-```
-
-## Running the tests (optional)
-
-```bash
-pytest -q
-```
-
-The tests use a temporary in-memory database, so your real data is not touched.
-
-## Authentication
-
-`/signup` and `/login` return a token. Send it on every protected request:
-
-```
-Authorization: Bearer <token>
-```
-
-Tokens expire after 1 hour. A missing, invalid or expired token returns `401`.
-Logging out is done by the client deleting its token.
-
-## Endpoints
-
-| Method | Route | Auth | Description |
-|---|---|---|---|
-| GET | `/` | No | Check that the API is running |
-| POST | `/signup` | No | Create an account and return a token |
-| POST | `/login` | No | Log in and return a token |
-| GET | `/me` | Yes | Get the logged-in user |
-| GET | `/notes?page=1&per_page=10` | Yes | List your notes, newest first (paginated) |
-| POST | `/notes` | Yes | Create a note |
-| PATCH | `/notes/<id>` | Yes | Update the title and/or content of your note |
-| DELETE | `/notes/<id>` | Yes | Delete your note |
-
-### POST /signup
-
-```json
-{ "username": "alice", "password": "Password123!", "password_confirmation": "Password123!" }
-```
-
-Returns `201`:
-
-```json
-{ "token": "<JWT>", "user": { "id": 1, "username": "alice" } }
-```
-
-Rules: username 3-80 characters (spaces around it are removed, and it is not
-case sensitive); password at least 8 characters and at most 72 bytes (a bcrypt
-limit); both passwords must match.
-Returns `400` for invalid input and `409` if the username is taken.
-
-### POST /login
-
-```json
-{ "username": "alice", "password": "Password123!" }
-```
-
-Returns `200` with the same body as signup. Returns `400` if a field is
-missing, and `401` for a wrong username or password (the same message for
-both, so nobody can discover which usernames exist).
-
-### GET /me
-
-Returns `200`: `{ "id": 1, "username": "alice" }`
-
-### GET /notes
-
-Query parameters: `page` (default 1) and `per_page` (default 10, maximum 100).
-
-Returns `200`:
-
-```json
-{
-  "notes": [
-    { "id": 1, "title": "Buy milk", "content": "2 litres",
-      "created_at": "2026-10-20T11:31:01.890757", "user_id": 1 }
-  ],
-  "pagination": {
-    "page": 1, "per_page": 10, "total_notes": 1,
-    "total_pages": 1, "has_next": false, "has_previous": false
-  }
-}
-```
-
-A page past the end returns an empty `notes` list. A `page` or `per_page`
-that is not a whole number of 1 or more returns `400`.
-
-### POST /notes
-
-```json
-{ "title": "Buy milk", "content": "2 litres" }
-```
-
-Returns `201` with the new note. Title (max 150 characters) and content (max
-5000 characters) are required and cannot be blank. The note always belongs to
-the logged-in user.
-
-### PATCH /notes/&lt;id&gt;
-
-Send `title`, `content` or both. Fields you leave out stay the same. Returns
-`200` with the updated note, `400` for invalid or empty input, or `404` if the
-note does not exist or belongs to someone else.
-
-### DELETE /notes/&lt;id&gt;
-
-Returns `200`: `{ "message": "Note deleted successfully." }`, or `404` if the
-note does not exist or belongs to someone else.
-
-## Errors
-
-Every error uses the same JSON shape:
-
-```json
-{ "errors": ["Title cannot be empty.", "Content is required."] }
-```
-
-| Status | Meaning |
-|---|---|
-| 400 | Invalid input (missing or wrong fields, bad JSON, bad page number) |
-| 401 | Missing, invalid or expired token, or wrong login details |
-| 404 | Route not found, or note not found / not yours |
-| 405 | Wrong HTTP method for the route |
-| 409 | Username already taken |
-| 413 | Request body larger than 1 MB |
-| 500 | Unexpected server error |
+- Signup and login with hashed passwords (bcrypt); usernames are unique and checked case-insensitively.
+- `GET /me` validates the bearer token and returns the current user.
+- Protected notes CRUD: create, list, update, and delete.
+- Notes belong to the authenticated user. A user cannot read, update, delete, or create notes for another user.
+- Paginated note listing (`page`, `per_page`) with a default page size of 10 and maximum of 100.
+- Consistent JSON error responses, request validation, and one-hour access tokens.
+- Database migrations, repeatable seed data, and automated tests.
 
 ## Project structure
 
-```
+```text
 server/
-├── app.py            # Flask app, auth and notes routes, error handlers
-├── models.py         # User and Note models
-├── seed.py           # Sample data
-├── test_app.py       # Automated tests (optional)
-├── migrations/       # Flask-Migrate files
-├── Pipfile           # Dependencies
-├── .env.example      # Template for the .env file
+├── app.py                 # App factory, extension setup, error handling
+├── extensions.py          # Shared Flask extension instances
+├── models.py              # User and Note SQLAlchemy models
+├── helpers.py             # Validation, response helpers, ownership lookup
+├── routes/
+│   ├── __init__.py
+│   ├── auth.py            # Signup, login, /me
+│   └── notes.py           # Protected notes CRUD and pagination
+├── migrations/             # Flask-Migrate / Alembic migrations
+├── seed.py                # Sample users and notes
+├── test_app.py             # Pytest tests
+├── Pipfile
+├── Pipfile.lock
+├── .env.example
 └── README.md
+client-with-jwt/            # Provided React JWT client
 ```
 
-## Security notes
+## Setup
 
-- A note that belongs to another user returns `404`, the same as a note that
-  does not exist, so ids cannot be guessed to find out what exists.
-- The note owner is always taken from the token, never from the request body.
-- The secret key is read from `.env`. The app refuses to start without it.
+Requirements: Python 3.12 and Pipenv.
+
+1. Change into the backend directory:
+
+   ```bash
+   cd server
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   pipenv install
+   ```
+
+3. Create a local environment file and set a strong secret:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Edit `.env` and replace `JWT_SECRET_KEY` with a long random secret. Do not commit `.env`.
+
+4. Apply the database migrations and seed sample data:
+
+   ```bash
+   pipenv run flask --app app db upgrade
+   pipenv run python seed.py
+   ```
+
+5. Start the API:
+
+   ```bash
+   pipenv run python app.py
+   ```
+
+The API runs at `http://localhost:5555`. The React client uses this port as its development proxy target.
+
+## Demo account
+
+The seed script creates `alice` and `bob`, each with sample notes. Both accounts use the demo password `Password123!`. The script is safe to run repeatedly: it only creates a demo user if missing and only adds notes when that user has none.
+
+## Authentication
+
+Send the access token returned by signup or login as a bearer token on protected requests:
+
+```http
+Authorization: Bearer <token>
+```
+
+Tokens expire after one hour. JWT authentication is stateless; there is no server-side session logout endpoint. To log out in the frontend, discard the token locally. For a production system that needs immediate token revocation, add a token blocklist.
+
+## API endpoints
+
+All request and response bodies are JSON unless the response is `204` (not used by the current JWT API). Errors use this shape:
+
+```json
+{"errors": ["Explanation of the problem."]}
+```
+
+| Method | Endpoint | Auth | Purpose |
+|---|---|---|---|
+| `GET` | `/` | No | Health check |
+| `POST` | `/signup` | No | Create account and return token + user |
+| `POST` | `/login` | No | Authenticate and return token + user |
+| `GET` | `/me` | Bearer token | Validate token and return current user |
+| `POST` | `/notes` | Bearer token | Create a note |
+| `GET` | `/notes?page=1&per_page=10` | Bearer token | List own notes with pagination |
+| `PATCH` | `/notes/<id>` | Bearer token | Update title and/or content |
+| `DELETE` | `/notes/<id>` | Bearer token | Delete a note |
+
+### Signup example
+
+```json
+{
+  "username": "newuser",
+  "password": "password123",
+  "password_confirmation": "password123"
+}
+```
+
+Successful signup returns `201` with `{"token": "...", "user": {"id": 1, "username": "newuser"}}`.
+
+### Note example
+
+```json
+{
+  "title": "Finish assignment",
+  "content": "Review the rubric and submit the project."
+}
+```
+
+A note includes `id`, `title`, `content`, `created_at`, and `user_id`. The server always derives `user_id` from the token, never from the request body.
+
+### Pagination response
+
+`GET /notes` returns a `notes` array and a `pagination` object with `page`, `per_page`, `total_notes`, `total_pages`, `has_next`, and `has_previous`. Invalid page values return `400`. Notes are returned newest first.
+
+## Tests
+
+Run from `server/`:
+
+```bash
+pipenv run pytest -q
+```
+
+The tests use an in-memory SQLite database. They cover authentication, password hashing, note validation, pagination, ownership, and CRUD behavior.
+
+## Security and design notes
+
+- Passwords are stored only as bcrypt hashes.
+- Usernames are unique at the database level and looked up case-insensitively by the API.
+- Every notes endpoint requires a valid JWT.
+- Queries are scoped to `current_user.id`; notes owned by another user are reported as not found.
+- `.env` is ignored by Git. Configure a unique `JWT_SECRET_KEY` outside source control.
+- `helpers.py` keeps validation and ownership logic reusable; blueprints separate authentication from note resources.

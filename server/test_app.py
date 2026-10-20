@@ -404,3 +404,4 @@ def test_oversized_body_is_413(client):
     response = client.post("/signup", data="x" * (1024 * 1024 + 10), content_type="application/json")
     assert response.status_code == 413
     assert response.get_json()["errors"]
+
