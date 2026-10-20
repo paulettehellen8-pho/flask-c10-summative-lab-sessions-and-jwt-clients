@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "a9745db4d581e7d7d0b7c1e24326d1293d837aea277d662b4a28b9dd5aab394d"
+            "sha256": "b2c5caf0f01dec0d79211eeddfd2c70254d0b99093f944c475ff93a9d3cf2b5c"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -23,13 +23,6 @@
             ],
             "markers": "python_version >= '3.10'",
             "version": "==1.20.0"
-        },
-        "aniso8601": {
-            "hashes": [
-                "sha256:25488f8663dd1528ae1f54f94ac1ea51ae25b4d531539b8bc707fed184d16845",
-                "sha256:eb19717fd4e0db6de1aab06f12450ab92144246b257423fe020af5748c0cb89e"
-            ],
-            "version": "==10.0.1"
         },
         "attrs": {
             "hashes": [
@@ -142,15 +135,6 @@
             "index": "pypi",
             "version": "==1.0.1"
         },
-        "flask-cors": {
-            "hashes": [
-                "sha256:30c5031552cd59f620ac0c8211dac45b345d3b2df310e7721879e4f46ef9c601",
-                "sha256:68fcf75693e961f3af26683b23c4b9a8fb6b64de17d20d0c37b95e8de7ab2ed8"
-            ],
-            "index": "pypi",
-            "markers": "python_version >= '3.9' and python_version < '4.0'",
-            "version": "==6.0.5"
-        },
         "flask-jwt-extended": {
             "hashes": [
                 "sha256:78fd0f460317facf3a0084a6457ffaf2f1dda9eefbd576f94cea35b0eadd5531",
@@ -168,14 +152,6 @@
             "index": "pypi",
             "markers": "python_version >= '3.6'",
             "version": "==4.0.0"
-        },
-        "flask-restful": {
-            "hashes": [
-                "sha256:4970c49b6488e46c520b325f54833374dc2b98e211f1b272bd4b0c516232afe2",
-                "sha256:ccec650b835d48192138c85329ae03735e6ced58e9b2d9c2146d6c84c06fa53e"
-            ],
-            "index": "pypi",
-            "version": "==0.3.9"
         },
         "flask-sqlalchemy": {
             "hashes": [
@@ -452,13 +428,6 @@
             "markers": "python_version >= '3.10'",
             "version": "==1.2.4"
         },
-        "pytz": {
-            "hashes": [
-                "sha256:e658af3757f9e26a9d25dd2aff38335acd92bc9104f890a894b2c1ba28311b03",
-                "sha256:fa23724b9c486543b9ff54a327ee7569ac83ade54bb9afd0fc18676620401c86"
-            ],
-            "version": "==2026.5"
-        },
         "six": {
             "hashes": [
                 "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274",
@@ -573,4 +542,3 @@
     },
     "develop": {}
 }
-
