@@ -7,8 +7,9 @@ not created again.
 from faker import Faker
 from sqlalchemy.exc import OperationalError
 
-from app import app, bcrypt
-from models import db, User, Note
+from app import create_app
+from extensions import db
+from models import Note, User
 
 SAMPLE_PASSWORD = "Password123!"
 
@@ -21,6 +22,7 @@ Faker.seed(42)  # same fake text every run, which makes demos repeatable
 
 
 def seed_database():
+    app = create_app()  # seed builds its own app; app.py has no global `app`
     with app.app_context():
         try:
             for username, note_count in SAMPLE_USERS.items():
@@ -28,12 +30,10 @@ def seed_database():
 
                 # Only create the user if they are not in the database yet
                 if user is None:
-                    user = User(
-                        username=username,
-                        password_hash=bcrypt.generate_password_hash(
-                            SAMPLE_PASSWORD
-                        ).decode("utf-8"),
-                    )
+                    user = User(username=username)
+                    # Give the setter the PLAIN password. It hashes it.
+                    # Hashing here as well would hash twice and break login.
+                    user.password_hash = SAMPLE_PASSWORD
                     db.session.add(user)
                     # flush() gives the new user an id without committing,
                     # and we need that id for the notes below.
@@ -63,4 +63,3 @@ def seed_database():
 
 if __name__ == "__main__":
     seed_database()
-
