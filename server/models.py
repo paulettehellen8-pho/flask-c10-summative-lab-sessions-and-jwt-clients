@@ -1,67 +1,63 @@
-"""Database models for the Productivity API.
-
-Two tables:
-  users - people who can log in
-  notes - private notes, each one belongs to exactly one user
-"""
 from datetime import datetime, timezone
 
-from flask_sqlalchemy import SQLAlchemy
+from extensions import bcrypt, db
 
-db = SQLAlchemy()
-
-
-def utc_now():
-    """Current time in UTC. Used as the default value for created_at."""
-    return datetime.now(timezone.utc)
+# Limits live HERE, once. The database column sizes and the validation rules
+# in schemas.py both read these, so they can never disagree (DRY).
+USERNAME_MIN, USERNAME_MAX = 3, 50
+PASSWORD_MIN, PASSWORD_MAX_BYTES = 8, 72  # bcrypt cannot hash more than 72 bytes
+TITLE_MAX = 150
+CONTENT_MAX = 5000
 
 
 class User(db.Model):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
-    # unique=True stops two users sharing a username at the database level
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    # We only ever store the bcrypt hash, never the real password
-    password_hash = db.Column(db.String(128), nullable=False)
+    username = db.Column(db.String(USERNAME_MAX), unique=True, nullable=False)
+    _password_hash = db.Column(db.String(128), nullable=False)  # underscore = private
 
-    # One user has many notes. If a user is deleted, their notes go too
-    # (otherwise we would be left with notes that belong to nobody).
-    notes = db.relationship(
-        "Note",
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
+    # If a user is deleted, their notes go too (no orphaned notes).
+    notes = db.relationship("Note", back_populates="user", cascade="all, delete-orphan")
+
+    @property
+    def password_hash(self):
+        # Reading the hash is blocked so it can't leak into a response.
+        raise AttributeError("Password hashes are not readable.")
+
+    @password_hash.setter
+    def password_hash(self, password):
+        # user.password_hash = "secret" hashes it automatically.
+        self._password_hash = bcrypt.generate_password_hash(password).decode("utf-8")
+
+    def authenticate(self, password):
+        # bcrypt 5 raises an error for passwords over 72 bytes. Without this
+        # guard, a long password at LOGIN would crash with a 500.
+        if len(password.encode("utf-8")) > PASSWORD_MAX_BYTES:
+            return False
+        return bcrypt.check_password_hash(self._password_hash, password)
 
     def to_dict(self):
-        """Safe version of the user to send as JSON (no password hash!)."""
         return {"id": self.id, "username": self.username}
-
-    def __repr__(self):
-        return f"<User {self.id} {self.username}>"
 
 
 class Note(db.Model):
     __tablename__ = "notes"
 
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(150), nullable=False)
+    title = db.Column(db.String(TITLE_MAX), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=utc_now)
-
-    # Foreign key linking the note to its owner. index=True makes the
-    # "give me all notes for this user" query fast.
-    user_id = db.Column(
-        db.Integer,
-        db.ForeignKey("users.id"),
-        nullable=False,
-        index=True,
+    # A lambda so the time is read when each note is created,
+    # not once when the file is loaded.
+    created_at = db.Column(
+        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
+    # index=True speeds up "all notes for this user".
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
 
     user = db.relationship("User", back_populates="notes")
 
     def to_dict(self):
-        """Turn the note into a dictionary that Flask can send as JSON."""
         return {
             "id": self.id,
             "title": self.title,
@@ -69,7 +65,3 @@ class Note(db.Model):
             "created_at": self.created_at.isoformat(),
             "user_id": self.user_id,
         }
-
-    def __repr__(self):
-        return f"<Note {self.id} {self.title}>"
-
